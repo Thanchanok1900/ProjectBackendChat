@@ -1,0 +1,11 @@
+// .sequelizerc
+
+const path = require('path');
+
+// ไฟล์นี้จะบอก sequelize-cli ว่าไฟล์ config, model, migration, seeder อยู่ที่ไหน
+module.exports = {
+  'config': path.resolve('config', 'config.json'),
+  'models-path': path.resolve('models'),
+  'seeders-path': path.resolve('seeders'),
+  'migrations-path': path.resolve('migrations'),
+};

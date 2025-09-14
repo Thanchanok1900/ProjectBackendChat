@@ -4,18 +4,26 @@
   "description": "",
   "main": "app.js",
   "scripts": {
+    "dev": "nodemon app..js",
     "start": "node app.js",
-    "dev": "nodemon app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Thanchanok1900/ProjectBackendChat.git"
+  },
+  "keywords": [],
   "author": "",
   "license": "ISC",
-  "devDependencies": {
-    "morgan": "^1.10.1",
-    "nodemon": "^3.1.10"
+  "bugs": {
+    "url": "https://github.com/Thanchanok1900/ProjectBackendChat/issues"
   },
+  "homepage": "https://github.com/Thanchanok1900/ProjectBackendChat#readme",
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
     "express": "^5.1.0",
+    "mysql2": "^3.14.5",
     "pg": "^8.16.3",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.7"
