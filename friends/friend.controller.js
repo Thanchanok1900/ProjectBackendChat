@@ -5,9 +5,11 @@ const friendService = require('./friend.service');
 
 // 16. POST /api/friends/request -> ส่งคำขอเป็นเพื่อน
 router.post('/request', async (req, res) => {
-    const { senderId, receiverId } = req.body;
+    // แก้ไขบรรทัดนี้ให้ชื่อตัวแปรตรงกับ Postman
+    const { senderid, targetid } = req.body; 
     try {
-        const newRequest = await friendService.sendFriendRequest(senderId, receiverId);
+        // แก้ไขบรรทัดนี้ให้ส่งค่าตัวแปรที่ถูกต้อง
+        const newRequest = await friendService.sendFriendRequest(senderid, targetid);
         res.status(201).send({ message: "Friend request sent successfully.", request: newRequest });
     } catch (error) {
         res.status(500).send({ message: "Error sending friend request.", error: error.message });
