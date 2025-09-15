@@ -1,7 +1,7 @@
-// api/friend.controller.js
+// friend.controller.js
 const express = require('express');
 const router = express.Router();
-const friendService = require('./friend.service'); // เรียกใช้ service layer
+const friendService = require('./friend.service');
 
 // 16. POST /api/friends/request -> ส่งคำขอเป็นเพื่อน
 router.post('/request', async (req, res) => {
@@ -26,11 +26,11 @@ router.get('/status/:userId', async (req, res) => {
 });
 
 // 18. PUT /api/friends/respond/:friendshipId -> ตอบรับ/ปฏิเสธ คำขอ
-router.put('/respond/:friendshipId', async (req, res) => {
-    const { friendshipId } = req.params;
-    const { response, userId } = req.body;
+router.put('/respond/:friendshipid', async (req, res) => {
+    const { friendshipid } = req.params;
+    const { response, userid } = req.body; // แก้ไขจาก userId เป็น userid
     try {
-        const result = await friendService.respondToRequest(friendshipId, response, userId);
+        const result = await friendService.respondToRequest(friendshipid, response, userid); // ส่งค่า userid ที่ถูกต้อง
         if (result.message) {
             res.status(200).send(result);
         } else {

@@ -1,15 +1,13 @@
-// index.js
 const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 require('dotenv').config();
 
-// บรรทัดนี้ที่หายไป
+// บรรทัดที่ 1: กำหนดตัวแปรสำหรับ router ของเพื่อน
 const friendRouter = require('./friends/friend.controller');
 
-// คุณอาจต้องแก้ไขบรรทัดนี้ด้วย ถ้าคุณรวม models เข้าไปใน controller
+// บรรทัดที่ 2: กำหนดตัวแปรสำหรับ Sequelize
 const { sequelize } = require('./friends/friend.model');
-
 
 const app = express();
 

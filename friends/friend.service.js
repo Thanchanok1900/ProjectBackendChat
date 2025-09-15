@@ -1,18 +1,15 @@
-// friend.service.js
 const { Op, Friendship, User } = require('./friend.model');
 
 // ส่งคำขอเป็นเพื่อน
-exports.sendFriendRequest = async (senderId, receiverId) => {
-    // ตรวจสอบว่าส่งหาตัวเอง
-    if (senderId === receiverId) {
+exports.sendFriendRequest = async (senderid, targetid) => {
+    if (senderid === targetid) {
         throw new Error("Cannot send friend request to yourself.");
     }
-    // ตรวจสอบว่ามีคำขอที่ค้างอยู่ หรือเป็นเพื่อนกันแล้วหรือไม่
     const existingFriendship = await Friendship.findOne({
         where: {
             [Op.or]: [
-                { senderId: senderId, receiverId: receiverId },
-                { senderId: receiverId, receiverId: senderId }
+                { senderid: senderid, targetid: targetid },
+                { senderid: targetid, targetid: senderid }
             ]
         }
     });
@@ -20,43 +17,43 @@ exports.sendFriendRequest = async (senderId, receiverId) => {
     if (existingFriendship) {
         throw new Error("Friend request already sent or you are already friends.");
     }
-    // สร้างคำขอใหม่
-    return await Friendship.create({ senderId, receiverId, status: 'pending' });
+    return await Friendship.create({ senderid, targetid, status: 'pending' });
 };
 
 // ดูสถานะเพื่อนทั้งหมด
-exports.getFriendshipStatus = async (userId) => {
+exports.getFriendshipStatus = async (userid) => {
     const friendships = await Friendship.findAll({
         where: {
             [Op.or]: [
-                { senderId: userId },
-                { receiverId: userId }
+                { senderid: userid },
+                { targetid: userid }
             ]
         },
         include: [
-            { model: User, as: 'sender', attributes: ['id', 'username'] },
-            { model: User, as: 'receiver', attributes: ['id', 'username'] }
+            { model: User, as: 'sender', attributes: ['userid', 'username'] },
+            { model: User, as: 'receiver', attributes: ['userid', 'username'] }
         ]
     });
     
     const response = {
         friends: friendships.filter(f => f.status === 'accepted'),
-        pendingSent: friendships.filter(f => f.status === 'pending' && f.senderId == userId),
-        pendingReceived: friendships.filter(f => f.status === 'pending' && f.receiverId == userId),
+        pendingSent: friendships.filter(f => f.status === 'pending' && f.senderid == userid),
+        pendingReceived: friendships.filter(f => f.status === 'pending' && f.targetid == userid),
     };
 
     return response;
 };
 
 // ตอบรับ/ปฏิเสธคำขอ
-exports.respondToRequest = async (friendshipId, response, userId) => {
-    const request = await Friendship.findByPk(friendshipId);
+exports.respondToRequest = async (friendshipid, response, userid) => {
+    const request = await Friendship.findByPk(friendshipid);
 
     if (!request) {
         throw new Error("Friend request not found.");
     }
     
-    if (request.receiverId !== userId){
+    // บรรทัดนี้ที่ต้องแก้ไขให้ถูกต้อง
+    if (request.targetid !== userid){ 
         throw new Error("You are not authorized to respond to this request.");
     }
 
@@ -72,8 +69,8 @@ exports.respondToRequest = async (friendshipId, response, userId) => {
 };
 
 // ลบเพื่อน
-exports.unfriend = async (friendshipId) => {
-    const friendship = await Friendship.findByPk(friendshipId);
+exports.unfriend = async (friendshipid) => {
+    const friendship = await Friendship.findByPk(friendshipid);
 
     if (!friendship) {
         throw new Error("Friendship not found.");

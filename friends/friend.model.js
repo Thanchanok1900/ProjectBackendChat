@@ -1,8 +1,7 @@
-// friend.model.js
-const { Sequelize, DataTypes, Model } = require('sequelize');
+const { Sequelize, DataTypes, Model, Op } = require('sequelize');
 const process = require('process');
-const config = require(__dirname + '/../config/config.json')[process.env.NODE_ENV || 'development'];
-const { Op } = require('sequelize');
+const path = require('path');
+const config = require(path.join(__dirname, '../config/config.json'))[process.env.NODE_ENV || 'development'];
 
 let sequelize;
 if (config.use_env_variable) {
@@ -15,72 +14,86 @@ if (config.use_env_variable) {
 class User extends Model {
   static associate(models) {
     User.hasMany(models.Friendship, {
-      foreignKey: 'senderId',
+      foreignKey: 'senderid',
       as: 'sentRequests'
     });
     User.hasMany(models.Friendship, {
-      foreignKey: 'receiverId',
+      foreignKey: 'targetid', // แก้ไขชื่อคอลัมน์เป็น 'targetid'
       as: 'receivedRequests'
     });
   }
 }
 User.init({
+  userid: { // แก้ไข Primary Key เป็น 'userid'
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
   username: {
-    type: DataTypes.STRING,
+    type: DataTypes.STRING(100),
     allowNull: false,
     unique: true
   },
   password: {
-    type: DataTypes.STRING,
+    type: DataTypes.TEXT, // แก้ไข Type เป็น TEXT
     allowNull: false
   },
-  originalLang: {
-    type: DataTypes.STRING,
+  originallang: {
+    type: DataTypes.STRING(10), // แก้ไข Type เป็น STRING(10)
     allowNull: false
   }
 }, {
   sequelize,
   modelName: 'User',
+  tableName: 'users', // กำหนดชื่อตาราง
+  timestamps: false // ลบ timestamps
 });
 
 // Model Friendship
 class Friendship extends Model {
   static associate(models) {
     Friendship.belongsTo(models.User, {
-      foreignKey: 'senderId',
+      foreignKey: 'senderid',
       as: 'sender'
     });
     Friendship.belongsTo(models.User, {
-      foreignKey: 'receiverId',
+      foreignKey: 'targetid', // แก้ไขชื่อคอลัมน์เป็น 'targetid'
       as: 'receiver'
     });
   }
 }
 Friendship.init({
-  senderId: {
+  friendshipid: { // แก้ไข Primary Key เป็น 'friendshipid'
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  senderid: { // แก้ไขชื่อคอลัมน์เป็น 'senderid'
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Users',
-      key: 'id'
+      model: 'users', // ชี้ไปที่ตาราง users
+      key: 'userid' // ชี้ไปที่ Primary Key ใหม่ของตาราง users
     }
   },
-  receiverId: {
+  targetid: { // แก้ไขชื่อคอลัมน์เป็น 'targetid'
     type: DataTypes.INTEGER,
     allowNull: false,
     references: {
-      model: 'Users',
-      key: 'id'
+      model: 'users',
+      key: 'userid'
     }
   },
   status: {
-    type: DataTypes.ENUM('pending', 'accepted'),
+    type: DataTypes.STRING(20), // แก้ไข Type เป็น STRING(20)
     allowNull: false,
     defaultValue: 'pending'
   }
 }, {
   sequelize,
   modelName: 'Friendship',
+  tableName: 'friends', // กำหนดชื่อตาราง
+  timestamps: false // ลบ timestamps
 });
 
 // Set up associations
@@ -91,7 +104,6 @@ Object.keys(models).forEach(modelName => {
   }
 });
 
-// Export objects
 module.exports = {
   sequelize,
   Op,
