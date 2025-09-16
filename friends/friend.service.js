@@ -69,11 +69,16 @@ exports.respondToRequest = async (friendshipid, response, userid) => {
 };
 
 // ลบเพื่อน
-exports.unfriend = async (friendshipid) => {
+exports.unfriend = async (friendshipid, userid) => {
     const friendship = await Friendship.findByPk(friendshipid);
 
     if (!friendship) {
         throw new Error("Friendship not found.");
+    }
+
+    // เพิ่มการตรวจสอบสิทธิ์: ต้องเป็นหนึ่งในคู่เพื่อนเท่านั้นถึงจะลบได้
+    if (friendship.senderid !== userid && friendship.targetid !== userid) {
+        throw new Error("You are not authorized to remove this friendship.");
     }
     
     await friendship.destroy();

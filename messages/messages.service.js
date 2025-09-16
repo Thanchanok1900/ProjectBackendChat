@@ -1,248 +1,232 @@
-const { sequelize } = require('../config/database');
-const { QueryTypes } = require('sequelize');
+// messages.service.js
+const { Sequelize } = require('sequelize');
 const Message = require('./messages.model');
+const User = require('../users/users.model');
+const ChatRoom = require('../chatRoom/chatRoom.model');
 const { translate } = require('../translate/translate.service');
 
-/** หา “ห้องล่าสุดที่ผู้ใช้ me อยู่” */
-async function getMyActiveRoom(me) {
-  const rows = await sequelize.query(`
-    SELECT cr.roomid, cr.headuserid, cr.targetuserid, cr.created_at,
-           u1.userid AS head_id,   u1.originallang AS head_lang,
-           u2.userid AS target_id, u2.originallang AS target_lang
-    FROM chat_rooms cr
-    JOIN users u1 ON u1.userid = cr.headuserid
-    JOIN users u2 ON u2.userid = cr.targetuserid
-    WHERE cr.headuserid = :me OR cr.targetuserid = :me
-    ORDER BY cr.created_at DESC, cr.roomid DESC
-    LIMIT 1
-  `, { type: QueryTypes.SELECT, replacements: { me } });
-  return rows[0] || null;
-}
-
-/** หา “ห้องระหว่าง me ↔ target” (ทั้งสองทิศทาง) */
-async function getRoomByPair(me, target) {
-  const rows = await sequelize.query(`
-    SELECT cr.roomid, cr.headuserid, cr.targetuserid, cr.created_at,
-           u1.userid AS head_id,   u1.originallang AS head_lang,
-           u2.userid AS target_id, u2.originallang AS target_lang
-    FROM chat_rooms cr
-    JOIN users u1 ON u1.userid = cr.headuserid
-    JOIN users u2 ON u2.userid = cr.targetuserid
-    WHERE (cr.headuserid = :me AND cr.targetuserid = :target)
-       OR (cr.headuserid = :target AND cr.targetuserid = :me)
-    ORDER BY cr.created_at DESC, cr.roomid DESC
-    LIMIT 1
-  `, { type: QueryTypes.SELECT, replacements: { me, target } });
-  return rows[0] || null;
-}
-
 /** จัดรูป response ของ message */
-function shapeRow(m, headUser, targetUser) {
-  const isHead = m.senderid === headUser.userid;
+function shapeRow(m) {
+  // เพิ่มการตรวจสอบ m.ChatRoom.HeadUser และ m.ChatRoom.TargetUser
+  const isHead = m.senderid === (m.ChatRoom?.HeadUser?.userid || null);
   return {
     messageid: m.messageid,
     roomid: m.roomid,
     senderuserid: m.senderid,
     originalmessage: m.originalmessage,
-    originallang: isHead ? headUser.originallang : targetUser.originallang,
-    targetuserid:  isHead ? targetUser.userid : headUser.userid,
-    targetlang:    isHead ? targetUser.originallang : headUser.originallang,
-    translatemessage: m.translatemessage
+    originallang: isHead ? m.ChatRoom?.HeadUser?.originallang : m.ChatRoom?.TargetUser?.originallang,
+    targetuserid: isHead ? m.ChatRoom?.TargetUser?.userid : m.ChatRoom?.HeadUser?.userid,
+    targetlang: isHead ? m.ChatRoom?.TargetUser?.originallang : m.ChatRoom?.HeadUser?.originallang,
+    translatemessage: m.translatemessage,
   };
 }
+/** หา “ห้องล่าสุดที่ผู้ใช้ me อยู่” */
+async function getMyActiveRoom(me) {
+  return await ChatRoom.findOne({
+    where: {
+      [Sequelize.Op.or]: [{ headuserid: me }, { targetuserid: me }],
+    },
+    include: [
+      { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
+      { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
+    ],
+    order: [['created_at', 'DESC']],
+  });
+}
 
-/** POST: ส่งข้อความโดย “ไม่ต้องใส่ roomid/senderid” → ใช้ห้องล่าสุดของผู้ใช้ */
-async function createMessageAutoRoom({ me, originalmessage }) {
-  if (!originalmessage) { const e = new Error('originalmessage is required'); e.statusCode = 400; throw e; }
+/** สร้างข้อความโดยระบุ roomid */
+async function createMessage({ me, originalmessage, roomid }) {
+  // 1. ตรวจสอบว่าห้องแชทมีอยู่จริง
+  const room = await ChatRoom.findOne({
+    where: { roomid },
+    include: [
+      { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
+      { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
+    ],
+  });
+  if (!room) {
+    throw { statusCode: 404, message: 'Chat room not found' };
+  }
 
-  const room = await getMyActiveRoom(me);
-  if (!room) { const e = new Error('No active chat room found for this user'); e.statusCode = 404; throw e; }
+  // 2. ตรวจสอบว่าผู้ใช้เป็นสมาชิกของห้องแชท
+  if (room.headuserid !== me && room.targetuserid !== me) {
+    throw { statusCode: 403, message: 'Forbidden: You are not a member of this chat room' };
+  }
 
-  const isHead = me === room.headuserid;
-  const fromLang = isHead ? room.head_lang : room.target_lang;
-  const toLang   = isHead ? room.target_lang : room.head_lang;
+  // 3. แปลข้อความ
+  const sourceLang = room.headuserid === me ? room.HeadUser.originallang : room.TargetUser.originallang;
+  const targetLang = room.headuserid === me ? room.TargetUser.originallang : room.HeadUser.originallang;
 
-  let translated = originalmessage;
-  try { translated = await translate(originalmessage, fromLang, toLang); } catch {}
+  // *** แก้ไขบรรทัดนี้: ส่งค่า sourceLang และ targetLang เป็นพารามิเตอร์แยกกัน ***
+  const translated = await translate(originalmessage, sourceLang, targetLang);
 
-  const saved = await Message.create({
-    roomid: room.roomid,
+  // 4. บันทึกข้อความลงในฐานข้อมูล
+  const msg = await Message.create({
+    roomid,
     senderid: me,
     originalmessage,
-    translatemessage: translated
+    translatemessage: translated,
   });
 
-  return shapeRow(saved,
-    { userid: room.head_id, originallang: room.head_lang },
-    { userid: room.target_id, originallang: room.target_lang }
-  );
+  // 5. ส่งข้อมูลที่สมบูรณ์กลับไป
+  return await getMessageById(msg.messageid, me);
 }
 
-/** ดึงข้อความทั้งหมดของ “ห้อง” ที่กำหนด (ภายใน) */
-async function _listByRoom(room) {
-  const list = await Message.findAll({
-    where: { roomid: room.roomid },
-    order: [['created_at', 'ASC'], ['messageid', 'ASC']]
-  });
-  return list.map(m => shapeRow(m,
-    { userid: room.head_id, originallang: room.head_lang },
-    { userid: room.target_id, originallang: room.target_lang }
-  ));
-}
-
-/** GET: ข้อความกับ target ที่กำหนด (me ↔ target) */
-async function listAllWithTarget(me, target) {
-  const room = await getRoomByPair(me, target);
-  if (!room) { const e = new Error('Chat room not found'); e.statusCode = 404; throw e; }
-  if (![room.headuserid, room.targetuserid].includes(me)) { const e = new Error('Forbidden: not a room member'); e.statusCode = 403; throw e; }
-  return _listByRoom(room);
-}
-
-/** GET: ข้อความใน “ห้องล่าสุดของฉัน” (ไม่ระบุ target) */
-async function listAllMyActiveRoom(me) {
-  const room = await getMyActiveRoom(me);
-  if (!room) { const e = new Error('No active chat room found for this user'); e.statusCode = 404; throw e; }
-  if (![room.headuserid, room.targetuserid].includes(me)) { const e = new Error('Forbidden: not a room member'); e.statusCode = 403; throw e; }
-  return _listByRoom(room);
-}
-
-/** GET: เฉพาะที่ฉันส่ง (กับ target) */
-async function listSentWithTarget(me, target) {
-  const all = await listAllWithTarget(me, target);
-  return all.filter(m => m.senderuserid === me);
-}
-/** GET: เฉพาะที่อีกฝั่งส่งถึงฉัน (กับ target) */
-async function listReceivedWithTarget(me, target) {
-  const all = await listAllWithTarget(me, target);
-  return all.filter(m => m.senderuserid !== me);
-}
-
-/** GET: เฉพาะที่ฉันส่ง (ห้องล่าสุด) */
-async function listSentMyActiveRoom(me) {
-  const all = await listAllMyActiveRoom(me);
-  return all.filter(m => m.senderuserid === me);
-}
-/** GET: เฉพาะที่อีกฝั่งส่ง (ห้องล่าสุด) */
-async function listReceivedMyActiveRoom(me) {
-  const all = await listAllMyActiveRoom(me);
-  return all.filter(m => m.senderuserid !== me);
-}
-
-/** PUT: แก้ข้อความของฉัน */
+/** UPDATE: แก้ไขข้อความของฉัน */
 async function updateMyMessage(messageid, me, originalmessage) {
-  if (!messageid || !originalmessage) { const e = new Error('messageid and originalmessage are required'); e.statusCode = 400; throw e; }
-  const msg = await Message.findOne({ where: { messageid } });
-  if (!msg) { const e = new Error('Message not found'); e.statusCode = 404; throw e; }
-  if (msg.senderid !== me) { const e = new Error('Forbidden: not your message'); e.statusCode = 403; throw e; }
+  const msg = await Message.findOne({
+    where: { messageid },
+    include: [
+      {
+        model: ChatRoom,
+        as: 'ChatRoom',
+        include: [
+          { model: User, as: 'HeadUser', attributes: ['originallang'] },
+          { model: User, as: 'TargetUser', attributes: ['originallang'] },
+        ],
+      },
+      { model: User, as: 'Sender', attributes: ['originallang'] },
+    ],
+  });
 
-  // โหลดภาษาคู่ห้อง
-  const room = await sequelize.query(`
-    SELECT cr.roomid, cr.headuserid, cr.targetuserid,
-           u1.userid AS head_id,   u1.originallang AS head_lang,
-           u2.userid AS target_id, u2.originallang AS target_lang
-    FROM chat_rooms cr
-    JOIN users u1 ON u1.userid = cr.headuserid
-    JOIN users u2 ON u2.userid = cr.targetuserid
-    WHERE cr.roomid = :roomid
-    LIMIT 1
-  `, { type: QueryTypes.SELECT, replacements: { roomid: msg.roomid } }).then(r => r[0]);
+  if (!msg) throw { statusCode: 404, message: 'Message not found' };
+  if (msg.senderid !== me) throw { statusCode: 403, message: 'Forbidden: not your message' };
+  if (![msg.ChatRoom.headuserid, msg.ChatRoom.targetuserid].includes(me))
+    throw { statusCode: 403, message: 'Forbidden: not a room member' };
 
-  if (!room) { const e = new Error('Chat room not found'); e.statusCode = 404; throw e; }
-  if (![room.headuserid, room.targetuserid].includes(me)) { const e = new Error('Forbidden: not a room member'); e.statusCode = 403; throw e; }
-
-  const isHead = me === room.headuserid;
-  const fromLang = isHead ? room.head_lang : room.target_lang;
-  const toLang   = isHead ? room.target_lang : room.head_lang;
-
-  let translated = originalmessage;
-  try { translated = await translate(originalmessage, fromLang, toLang); } catch {}
+  const targetlang = msg.ChatRoom.headuserid === me ? msg.ChatRoom.TargetUser.originallang : msg.ChatRoom.HeadUser.originallang;
+  
+  // *** แก้ไขบรรทัดนี้ ***
+  const translated = await translate(originalmessage, msg.Sender.originallang, targetlang);
 
   msg.originalmessage = originalmessage;
   msg.translatemessage = translated;
   await msg.save();
 
-  return shapeRow(msg,
-    { userid: room.head_id, originallang: room.head_lang },
-    { userid: room.target_id, originallang: room.target_lang }
-  );
+  return shapeRow(await getMessageById(msg.messageid, me));
 }
 
 /** DELETE: ลบข้อความของฉัน */
 async function deleteMyMessage(messageid, me) {
-  if (!messageid) { const e = new Error('messageid is required'); e.statusCode = 400; throw e; }
-  const msg = await Message.findOne({ where: { messageid } });
-  if (!msg) { const e = new Error('Message not found'); e.statusCode = 404; throw e; }
-  if (msg.senderid !== me) { const e = new Error('Forbidden: not your message'); e.statusCode = 403; throw e; }
+  const msg = await Message.findOne({
+    where: { messageid },
+    include: [{ model: ChatRoom, as: 'ChatRoom' }],
+  });
 
-  // ยืนยันว่า me เป็นสมาชิกห้อง
-  const rows = await sequelize.query(`
-    SELECT headuserid, targetuserid FROM chat_rooms WHERE roomid = :roomid LIMIT 1
-  `, { type: QueryTypes.SELECT, replacements: { roomid: msg.roomid } });
-  if (!rows.length) { const e = new Error('Chat room not found'); e.statusCode = 404; throw e; }
-  const { headuserid, targetuserid } = rows[0];
-  if (![headuserid, targetuserid].includes(me)) { const e = new Error('Forbidden: not a room member'); e.statusCode = 403; throw e; }
+  if (!msg) throw { statusCode: 404, message: 'Message not found' };
+  if (msg.senderid !== me) throw { statusCode: 403, message: 'Forbidden: not your message' };
+  if (![msg.ChatRoom.headuserid, msg.ChatRoom.targetuserid].includes(me))
+    throw { statusCode: 403, message: 'Forbidden: not a room member' };
 
   await msg.destroy();
   return { success: true };
 }
 
-
 /** GET: อ่านข้อความตาม messageid */
 async function getMessageById(messageid, me) {
-  const msg = await Message.findOne({ where: { messageid } });
-  if (!msg) {
-    const e = new Error('Message not found');
-    e.statusCode = 404;
-    throw e;
-  }
+  const msg = await Message.findOne({
+    where: { messageid },
+    include: [
+      {
+        model: ChatRoom,
+        as: 'ChatRoom',
+        include: [
+          { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
+          { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
+        ],
+      },
+      { model: User, as: 'Sender', attributes: ['originallang'] },
+    ],
+  });
 
-  const room = await sequelize.query(`
-    SELECT cr.roomid, cr.headuserid, cr.targetuserid,
-           u1.userid AS head_id, u1.originallang AS head_lang,
-           u2.userid AS target_id, u2.originallang AS target_lang
-    FROM chat_rooms cr
-    JOIN users u1 ON u1.userid = cr.headuserid
-    JOIN users u2 ON u2.userid = cr.targetuserid
-    WHERE cr.roomid = :roomid
-    LIMIT 1
-  `, {
-    type: QueryTypes.SELECT,
-    replacements: { roomid: msg.roomid }
-  }).then(r => r[0]);
+  if (!msg) throw { statusCode: 404, message: 'Message not found' };
+  if (![msg.ChatRoom.headuserid, msg.ChatRoom.targetuserid].includes(me))
+    throw { statusCode: 403, message: 'Forbidden: not a room member' };
 
-  if (!room) {
-    const e = new Error('Chat room not found');
-    e.statusCode = 404;
-    throw e;
-  }
-
-  if (![room.headuserid, room.targetuserid].includes(me)) {
-    const e = new Error('Forbidden: not a room member');
-    e.statusCode = 403;
-    throw e;
-  }
-
-  return shapeRow(msg,
-    { userid: room.head_id, originallang: room.head_lang },
-    { userid: room.target_id, originallang: room.target_lang }
-  );
+  return shapeRow(msg);
 }
 
+/** GET: ข้อความทั้งหมดในห้องที่ระบุ */
+async function listAllWithRoom(me, roomid) {
+  const room = await ChatRoom.findOne({
+    where: { roomid },
+  });
+
+  if (!room || (room.headuserid !== me && room.targetuserid !== me)) {
+    throw { statusCode: 403, message: 'Forbidden: You are not a member of this chat room' };
+  }
+
+  const msgs = await Message.findAll({
+    where: { roomid: roomid },
+    order: [['created_at', 'ASC']],
+    include: [
+      {
+        model: ChatRoom,
+        as: 'ChatRoom',
+        include: [
+          { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
+          { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
+        ],
+      },
+    ],
+  });
+  return msgs.map((m) => shapeRow(m));
+}
+
+/** GET: ข้อความของฉันทั้งหมดในห้องที่ระบุ */
+async function listSentWithRoom(me, roomid) {
+  const all = await listAllWithRoom(me, roomid);
+  return all.filter((m) => m.senderuserid === me);
+}
+
+/** GET: ข้อความของอีกฝ่ายในห้องที่ระบุ */
+async function listReceivedWithRoom(me, roomid) {
+  const all = await listAllWithRoom(me, roomid);
+  return all.filter((m) => m.senderuserid !== me);
+}
+
+/** GET: ข้อความทั้งหมดในห้องล่าสุดของฉัน */
+async function listAllMyActiveRoom(me) {
+  const room = await getMyActiveRoom(me);
+  if (!room) return [];
+  const msgs = await Message.findAll({
+    where: { roomid: room.roomid },
+    order: [['created_at', 'ASC']],
+    include: [
+      {
+        model: ChatRoom,
+        as: 'ChatRoom',
+        include: [
+          { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
+          { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
+        ],
+      },
+    ],
+  });
+  return msgs.map((m) => shapeRow(m));
+}
+
+/** GET: ข้อความของฉันในห้องล่าสุด */
+async function listSentMyActiveRoom(me) {
+  const all = await listAllMyActiveRoom(me);
+  return all.filter((m) => m.senderuserid === me);
+}
+
+/** GET: ข้อความของอีกฝ่ายในห้องล่าสุด */
+async function listReceivedMyActiveRoom(me) {
+  const all = await listAllMyActiveRoom(me);
+  return all.filter((m) => m.senderuserid !== me);
+}
 
 module.exports = {
-  // POST
-  createMessageAutoRoom,
-
-  // GET (เลือก target หรือใช้ active room)
-  listAllWithTarget,
-  listSentWithTarget,
-  listReceivedWithTarget,
+  createMessage,
+  updateMyMessage,
+  deleteMyMessage,
+  getMessageById,
+  listAllWithRoom,
+  listSentWithRoom,
+  listReceivedWithRoom,
   listAllMyActiveRoom,
   listSentMyActiveRoom,
   listReceivedMyActiveRoom,
-
-  // PUT / DELETE
-  updateMyMessage,
-  deleteMyMessage,
-  getMessageById
 };

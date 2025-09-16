@@ -2,7 +2,8 @@ const { DataTypes } = require('sequelize');
 const { sequelize } = require('../config/database');
 const User = require('../users/users.model');
 
-const ChatRoom = sequelize.define('ChatRoom', {
+const ChatRoom = sequelize.define(
+    'ChatRoom', {
     roomid: {
         type: DataTypes.INTEGER,
         primaryKey: true,

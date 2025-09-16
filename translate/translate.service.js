@@ -1,6 +1,7 @@
 // translate/translate.service.js
 const axios = require('axios');
 
+//จะทดสอบภาษาอื่นๆ เพิ่มเติม
 function normalize(code = 'en') {
   const c = String(code).trim().toLowerCase();
   const map = {

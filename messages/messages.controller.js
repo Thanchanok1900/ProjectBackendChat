@@ -1,76 +1,93 @@
+// messages.controller.js
 const express = require('express');
 const router = express.Router();
 const svc = require('./messages.service');
+const { authenticateToken } = require('../utils/authMiddleware');
 
 // health
-router.get('/messages/health', (req, res) => res.json({ ok: true }));
-
-// 1) POST: ส่งข้อความ โดยไม่ต้องใส่ roomid/senderid
-// body: { originalmessage }
-router.post('/messages', async (req, res, next) => {
+router.get('/health', async (req, res) => {
   try {
-    const me = req.user.userid;
-    const { originalmessage } = req.body;
-    const out = await svc.createMessageAutoRoom({ me, originalmessage });
-    res.status(201).json(out);
-  } catch (e) { next(e); }
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
-// 2) GET: อ่านข้อความในห้องที่ตัวเองอยู่เท่านั้น
-// - ถ้าระบุ ?target=<userid> → ใช้ห้อง me ↔ target
-// - ไม่ระบุ target → ใช้ห้องล่าสุดของ me
-// - filter=all|mine|other (default=all)
-router.get('/messages', async (req, res, next) => {
+// POST: ส่งข้อความ
+router.post('/', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
-    const target = req.query.target ? Number(req.query.target) : null;
+    const { originalmessage, roomid } = req.body;
+
+    if (!roomid) {
+      return res.status(400).json({ error: 'roomid is required' });
+    }
+
+    const out = await svc.createMessage({ me, originalmessage, roomid });
+    res.status(201).json(out);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
+  }
+});
+
+// GET: ข้อความทั้งหมด
+router.get('/', authenticateToken, async (req, res) => {
+  try {
+    const me = req.user.userid;
+    const roomid = req.query.roomid ? Number(req.query.roomid) : null;
     const filter = (req.query.filter || 'all').toLowerCase();
 
-    if (target) {
-      if (filter === 'mine')  return res.json(await svc.listSentWithTarget(me, target));
-      if (filter === 'other') return res.json(await svc.listReceivedWithTarget(me, target));
-      return res.json(await svc.listAllWithTarget(me, target));
+    let out;
+    if (roomid) {
+      if (filter === 'mine') out = await svc.listSentWithRoom(me, roomid);
+      else if (filter === 'other') out = await svc.listReceivedWithRoom(me, roomid);
+      else out = await svc.listAllWithRoom(me, roomid);
     } else {
-      if (filter === 'mine')  return res.json(await svc.listSentMyActiveRoom(me));
-      if (filter === 'other') return res.json(await svc.listReceivedMyActiveRoom(me));
-      return res.json(await svc.listAllMyActiveRoom(me));
+      if (filter === 'mine') out = await svc.listSentMyActiveRoom(me);
+      else if (filter === 'other') out = await svc.listReceivedMyActiveRoom(me);
+      else out = await svc.listAllMyActiveRoom(me);
     }
-  } catch (e) { next(e); }
+
+    res.json(out);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
+  }
 });
 
-// 3) PUT: แก้ไขข้อความของตัวเอง
-// body: { originalmessage }
-router.put('/messages/:messageid', async (req, res, next) => {
+// GET: อ่านข้อความตาม messageid
+router.get('/:messageid', authenticateToken, async (req, res) => {
+  try {
+    const me = req.user.userid;
+    const messageid = Number(req.params.messageid);
+    const out = await svc.getMessageById(messageid, me);
+    res.json(out);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
+  }
+});
+
+// PUT: แก้ไขข้อความ
+router.put('/:messageid', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
     const messageid = Number(req.params.messageid);
     const { originalmessage } = req.body;
     const out = await svc.updateMyMessage(messageid, me, originalmessage);
     res.json(out);
-  } catch (e) { next(e); }
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
+  }
 });
 
-// 4) DELETE: ลบข้อความของตัวเอง
-router.delete('/messages/:messageid', async (req, res, next) => {
+// DELETE: ลบข้อความ
+router.delete('/:messageid', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
     const messageid = Number(req.params.messageid);
     const out = await svc.deleteMyMessage(messageid, me);
     res.json(out);
-  } catch (e) { next(e); }
-});
-
-
-
-// 5) GET: อ่านข้อความตาม messageid
-router.get('/messages/:messageid', async (req, res, next) => {
-  try {
-    const me = req.user.userid;
-    const messageid = Number(req.params.messageid);
-    const msg = await svc.getMessageById(messageid, me);
-    res.json(msg);
-  } catch (e) {
-    next(e);
+  } catch (err) {
+    res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
   }
 });
 
