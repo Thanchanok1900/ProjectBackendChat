@@ -60,4 +60,18 @@ router.delete('/messages/:messageid', async (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+
+
+// 5) GET: อ่านข้อความตาม messageid
+router.get('/messages/:messageid', async (req, res, next) => {
+  try {
+    const me = req.user.userid;
+    const messageid = Number(req.params.messageid);
+    const msg = await svc.getMessageById(messageid, me);
+    res.json(msg);
+  } catch (e) {
+    next(e);
+  }
+});
+
 module.exports = router;

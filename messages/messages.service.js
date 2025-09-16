@@ -186,6 +186,49 @@ async function deleteMyMessage(messageid, me) {
   return { success: true };
 }
 
+
+/** GET: อ่านข้อความตาม messageid */
+async function getMessageById(messageid, me) {
+  const msg = await Message.findOne({ where: { messageid } });
+  if (!msg) {
+    const e = new Error('Message not found');
+    e.statusCode = 404;
+    throw e;
+  }
+
+  const room = await sequelize.query(`
+    SELECT cr.roomid, cr.headuserid, cr.targetuserid,
+           u1.userid AS head_id, u1.originallang AS head_lang,
+           u2.userid AS target_id, u2.originallang AS target_lang
+    FROM chat_rooms cr
+    JOIN users u1 ON u1.userid = cr.headuserid
+    JOIN users u2 ON u2.userid = cr.targetuserid
+    WHERE cr.roomid = :roomid
+    LIMIT 1
+  `, {
+    type: QueryTypes.SELECT,
+    replacements: { roomid: msg.roomid }
+  }).then(r => r[0]);
+
+  if (!room) {
+    const e = new Error('Chat room not found');
+    e.statusCode = 404;
+    throw e;
+  }
+
+  if (![room.headuserid, room.targetuserid].includes(me)) {
+    const e = new Error('Forbidden: not a room member');
+    e.statusCode = 403;
+    throw e;
+  }
+
+  return shapeRow(msg,
+    { userid: room.head_id, originallang: room.head_lang },
+    { userid: room.target_id, originallang: room.target_lang }
+  );
+}
+
+
 module.exports = {
   // POST
   createMessageAutoRoom,
@@ -200,5 +243,6 @@ module.exports = {
 
   // PUT / DELETE
   updateMyMessage,
-  deleteMyMessage
+  deleteMyMessage,
+  getMessageById
 };
