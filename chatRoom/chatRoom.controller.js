@@ -6,30 +6,20 @@ const { authenticateToken } = require('../utils/authMiddleware');
 
 // Create room
 router.post('/', authenticateToken, async (req, res, next) => {
-    try {
-        const { targetuserid } = req.body;
-        // ตรวจสอบว่าผู้ใช้ระบุ targetuserid หรือไม่
-        if (!targetuserid) {
-            return res.status(400).json({ message: "Missing targetuserid" });
-        }
-        // สร้างห้องใหม่ โดย headuserid มาจากผู้ login
-        const room = await chatRoomService.createRoom(targetuserid, req.user);
-        res.status(201).json(room);
-    } catch (err) {
-        next(err);
-    }
-});
+  try {
+    const { targetuserid } = req.body;
 
-// Get all rooms
-router.get('/', authenticateToken, async (req, res, next) => {
-    try {
-        // ส่ง userid เข้าไปเพื่อดึงเฉพาะห้องที่เป็นของฉันเท่านั้น
-        const rooms = await chatRoomService.getAllRooms(req.user.userid);
-        res.json(rooms);
-    } catch (err) {
-        console.error('GET error:', err);
-        res.status(500).json({ message: 'Server error' });
+    if (!targetuserid) {
+      return res.status(400).json({ message: "Missing targetuserid" });
     }
+
+    const room = await chatRoomService.createRoom(targetuserid, req.user);
+
+    return res.status(201).json(room);
+  } catch (err) {
+    console.error("POST /v1/chatrooms error:", err);
+    next(err);
+  }
 });
 
 // Get room by ID
@@ -41,6 +31,18 @@ router.get('/:roomid', authenticateToken, async (req, res, next) => {
         res.json(room);
     } catch (err) {
         console.error('GET/:roomid error:', err);
+        res.status(500).json({ message: 'Server error' });
+    }
+});
+
+// Get all rooms
+router.get('/', authenticateToken, async (req, res, next) => {
+    try {
+        // ส่ง userid เข้าไปเพื่อดึงเฉพาะห้องที่เป็นของฉันเท่านั้น
+        const rooms = await chatRoomService.getAllRooms(req.user.userid);
+        res.json(rooms);
+    } catch (err) {
+        console.error('GET error:', err);
         res.status(500).json({ message: 'Server error' });
     }
 });

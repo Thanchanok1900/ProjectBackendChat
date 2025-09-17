@@ -1,18 +1,14 @@
-// app.js
+require('dotenv').config();
 const express = require("express");
 const morgan = require('morgan');
-const { connect, sync } = require("./config/database");
-const bodyParser = require('body-parser');
 const cors = require('cors');
-require('dotenv').config();
+const bodyParser = require('body-parser');
+const { connect, sync } = require("./config/database");
 
-// เรียกใช้โมเดลทั้งหมดที่ต้องการ
-const User = require('./users/users.model');
-const ChatRoom = require('./chatRoom/chatRoom.model');
-const Message = require('./messages/messages.model');
-const { Friendship } = require('./friends/friend.model');
+require('./messages/messages.model');
 
 const app = express();
+
 app.use(morgan('tiny'));
 app.use(express.json());
 app.use(cors());
@@ -22,8 +18,8 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Routes
 const authRoutes = require("./auth/auth.controller");
 const userRoutes = require("./users/users.controller");
-const chatRoomRouter = require('./chatRoom/chatRoom.controller');
-const friendRouter = require('./friends/friend.controller');
+const chatRoomRouter = require('./chatRoom/chatRoom.controller'); 
+const friendRouter = require('./friend/friend.controller');
 const messagesRoutes = require('./messages/messages.controller');
 
 app.use("/v1/auth", authRoutes);
@@ -37,15 +33,14 @@ app.get('/', (req, res) => {
 });
 
 async function initializeDatabase() {
-  await connect();
-  await sync();
+    await connect();
+    await sync();
 }
-initializeDatabase()
+initializeDatabase();
 
 // error handler
-app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(err.statusCode || 500).json({ error: err.message || 'Internal Server Error' });
+app.use((req, res) => {
+    res.status(404).json({ error: 'Not Found' });
 });
 
 app.listen(3000, () => {

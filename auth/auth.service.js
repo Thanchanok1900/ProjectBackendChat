@@ -41,7 +41,6 @@ async function login(req, res) {
   }
 }
 
-//ดัก error เพิ่มด้วย
 async function logout(req, res) {
   res.json({ message: "Logout success. Discard token on client" });
 }

@@ -1,9 +1,6 @@
 # Node modules (หนัก ไม่ต้องอัปโหลด)
 node_modules/
 
-# Environment variables (ห้ามหลุดเพราะมี password/secret key)
-.env
-
 # Build output / compiled files
 dist/
 build/

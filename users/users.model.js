@@ -2,7 +2,7 @@ const { DataTypes } = require("sequelize");
 const { sequelize } = require("../config/database");
 
 const User = sequelize.define(
-    "User", {
+  "User", {
   userid: {
     type: DataTypes.INTEGER,
     primaryKey: true,

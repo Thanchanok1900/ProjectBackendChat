@@ -1,17 +1,17 @@
 // chatRoom.service.js
-const ChatRoom = require('./chatRoom.model');
+const ChatRooms = require('./chatRoom.model');
 const User = require('../users/users.model');
 const { Op } = require('sequelize');
 
 const createRoom = async (targetuserid, loggedInUser) => {
-    return await ChatRoom.create({ 
+    return await ChatRooms.create({ 
         headuserid: loggedInUser.userid, 
         targetuserid 
     });
 };
 
 const getRoomById = async (roomid, userid) => { // รับ userid เข้ามา
-    const room = await ChatRoom.findOne({
+    const room = await ChatRooms.findOne({
         where: { roomid },
         include: [
             { model: User, as: 'HeadUser', attributes: ['userid', 'username', 'originallang'] },
@@ -29,7 +29,7 @@ const getRoomById = async (roomid, userid) => { // รับ userid เข้า
 };
 
 const getAllRooms = async (userid) => { // รับ userid เข้ามา
-    return await ChatRoom.findAll({
+    return await ChatRooms.findAll({
         where: {
             [Op.or]: [
                 { headuserid: userid },
@@ -45,7 +45,7 @@ const getAllRooms = async (userid) => { // รับ userid เข้ามา
 };
 
 const deleteRoom = async (roomid, userid) => { // รับ userid เข้ามา
-    const room = await ChatRoom.findByPk(roomid);
+    const room = await ChatRooms.findByPk(roomid);
     if (!room) return null;
     
     // ตรวจสอบสิทธิ์ก่อนลบ: ต้องเป็นผู้สร้างห้อง (headuserid) หรือผู้ร่วมแชท (targetuserid)

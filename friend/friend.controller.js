@@ -18,17 +18,17 @@ router.post('/request', authenticateToken, async (req, res) => { // เพิ่
 });
 
 // 17. GET /api/friends/status/:userId -> ดูสถานะเพื่อนทั้งหมดของเรา
-router.get('/status/:userId', authenticateToken, async (req, res) => { // เพิ่ม authenticateToken
-    const { userId } = req.params;
-    // ตรวจสอบว่า userId ที่ส่งมาใน URL ตรงกับ userid ของผู้ใช้ที่เข้าสู่ระบบหรือไม่
-    if (parseInt(userId) !== req.user.userid) {
-        return res.status(403).send({ message: "Forbidden. You can only view your own status." });
-    }
-    try {
+router.get('/status/me', authenticateToken, async (req, res) => { // เพิ่ม authenticateToken
+     try {
+        const userId = req.user.userid; // ดึงจาก token เลย ไม่ต้องมาจาก params
+
         const status = await friendService.getFriendshipStatus(userId);
         res.status(200).send(status);
     } catch (error) {
-        res.status(500).send({ message: "Error retrieving friendship status.", error: error.message });
+        res.status(500).send({ 
+            message: "Error retrieving friendship status.", 
+            error: error.message 
+        });
     }
 });
 

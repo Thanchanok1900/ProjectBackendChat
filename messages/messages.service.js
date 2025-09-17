@@ -7,32 +7,40 @@ const { translate } = require('../translate/translate.service');
 
 /** จัดรูป response ของ message */
 function shapeRow(m) {
-  // เพิ่มการตรวจสอบ m.ChatRoom.HeadUser และ m.ChatRoom.TargetUser
-  const isHead = m.senderid === (m.ChatRoom?.HeadUser?.userid || null);
+  const isHead = m.senderid === m.ChatRoom.headuserid;
+  const originallang = isHead ? m.ChatRoom.HeadUser.originallang : m.ChatRoom.TargetUser.originallang;
+  const targetuserid = isHead ? m.ChatRoom.targetuserid : m.ChatRoom.headuserid;
   return {
     messageid: m.messageid,
     roomid: m.roomid,
     senderuserid: m.senderid,
     originalmessage: m.originalmessage,
-    originallang: isHead ? m.ChatRoom?.HeadUser?.originallang : m.ChatRoom?.TargetUser?.originallang,
-    targetuserid: isHead ? m.ChatRoom?.TargetUser?.userid : m.ChatRoom?.HeadUser?.userid,
-    targetlang: isHead ? m.ChatRoom?.TargetUser?.originallang : m.ChatRoom?.HeadUser?.originallang,
     translatemessage: m.translatemessage,
+    created_at: m.created_at,
+    originallang,
+    targetuserid
   };
 }
+
 /** หา “ห้องล่าสุดที่ผู้ใช้ me อยู่” */
 async function getMyActiveRoom(me) {
-  return await ChatRoom.findOne({
-    where: {
-      [Sequelize.Op.or]: [{ headuserid: me }, { targetuserid: me }],
-    },
-    include: [
-      { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
-      { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
-    ],
-    order: [['created_at', 'DESC']],
-  });
+  try {
+    const room = await ChatRoom.findOne({
+      where: {
+        [Sequelize.Op.or]: [{ headuserid: me }, { targetuserid: me }],
+      },
+      include: [
+        { model: User, as: 'HeadUser', attributes: ['userid', 'originallang'] },
+        { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
+      ],
+      order: [['created_at', 'DESC']],
+    });
+    return room;
+  } catch (err) {
+    throw { statusCode: 500, message: err.message };
+  }
 }
+
 
 /** สร้างข้อความโดยระบุ roomid */
 async function createMessage({ me, originalmessage, roomid }) {

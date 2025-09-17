@@ -27,6 +27,21 @@ async function getUser(req, res) {
   }
 }
 
+//Get my profile
+async function getMe(req, res) {
+  try {
+    const user = await User.findOne({
+      where: { userid: req.user.userid },  // ดึงจาก token
+      attributes: ['userid','username','originallang']
+    });
+
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+}
+
 // Update user
 async function updateUser(req, res) {
   try {
@@ -74,4 +89,4 @@ async function deleteUser(req, res) {
   }
 }
 
-module.exports = { getAllUsers, getUser, updateUser, deleteUser };
+module.exports = { getAllUsers, getUser, getMe, updateUser, deleteUser };
