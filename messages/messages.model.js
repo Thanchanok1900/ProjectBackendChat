@@ -1,4 +1,3 @@
-// messages/messages.model.js
 const { DataTypes, Model } = require('sequelize');
 const { sequelize } = require('../config/database');
 const ChatRoom = require('../chatRoom/chatRoom.model');
@@ -37,7 +36,6 @@ Message.init({
   timestamps: false
 });
 
-// กำหนดความสัมพันธ์ในไฟล์นี้
 Message.belongsTo(ChatRoom, { foreignKey: 'roomid', as: 'ChatRoom' });
 Message.belongsTo(User, { foreignKey: 'senderid', as: 'Sender' });
 

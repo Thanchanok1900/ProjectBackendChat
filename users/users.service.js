@@ -31,7 +31,7 @@ async function getUser(req, res) {
 async function getMe(req, res) {
   try {
     const user = await User.findOne({
-      where: { userid: req.user.userid },  // ดึงจาก token
+      where: { userid: req.user.userid }, 
       attributes: ['userid','username','originallang']
     });
 

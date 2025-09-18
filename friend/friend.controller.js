@@ -1,12 +1,10 @@
-// friend.controller.js
 const express = require('express');
 const router = express.Router();
 const friendService = require('./friend.service');
-const { authenticateToken } = require('../utils/authMiddleware'); // เพิ่มบรรทัดนี้
+const { authenticateToken } = require('../utils/authMiddleware');
 
-// 16. POST /api/friends/request -> ส่งคำขอเป็นเพื่อน
-router.post('/request', authenticateToken, async (req, res) => { // เพิ่ม authenticateToken
-    // ดึง userid จาก req.user ที่ได้จาก middleware
+// POST ส่งคำขอเป็นเพื่อน
+router.post('/request', authenticateToken, async (req, res) => {
     const senderid = req.user.userid; 
     const { targetid } = req.body; 
     try {
@@ -17,11 +15,10 @@ router.post('/request', authenticateToken, async (req, res) => { // เพิ่
     }
 });
 
-// 17. GET /api/friends/status/:userId -> ดูสถานะเพื่อนทั้งหมดของเรา
-router.get('/status/me', authenticateToken, async (req, res) => { // เพิ่ม authenticateToken
+// GET ดูสถานะเพื่อนของเรา
+router.get('/status/me', authenticateToken, async (req, res) => {
      try {
-        const userId = req.user.userid; // ดึงจาก token เลย ไม่ต้องมาจาก params
-
+        const userId = req.user.userid;
         const status = await friendService.getFriendshipStatus(userId);
         res.status(200).send(status);
     } catch (error) {
@@ -32,11 +29,10 @@ router.get('/status/me', authenticateToken, async (req, res) => { // เพิ�
     }
 });
 
-// 18. PUT /api/friends/respond/:friendshipId -> ตอบรับ/ปฏิเสธ คำขอ
-router.put('/respond/:friendshipid', authenticateToken, async (req, res) => { // เพิ่ม authenticateToken
+// PUT ตอบรับ/ปฏิเสธ คำขอ
+router.put('/response/:friendshipid', authenticateToken, async (req, res) => {
     const { friendshipid } = req.params;
     const { response } = req.body; 
-    // ดึง userid จาก req.user
     const userid = req.user.userid;
     try {
         const result = await friendService.respondToRequest(friendshipid, response, userid);
@@ -50,15 +46,15 @@ router.put('/respond/:friendshipid', authenticateToken, async (req, res) => { //
     }
 });
 
-// 19. DELETE /api/friends/:friendshipId -> ลบเพื่อน
-router.delete('/:friendshipId', authenticateToken, async (req, res) => { // เพิ่ม authenticateToken
+// DELETE ลบเพื่อน
+router.delete('/response/:friendshipId', authenticateToken, async (req, res) => {
     const { friendshipId } = req.params;
     const userid = req.user.userid;
     try {
         const result = await friendService.unfriend(friendshipId, userid);
-        res.status(200).send(result);
+        res.status(200).send({ message: "Friendship removed successfully.", result });
     } catch (error) {
-        res.status(500).send({ message: "Error removing friend.", error: error.message });
+        res.status(500).send({ message: "Error removing friendship.", error: error.message });
     }
 });
 

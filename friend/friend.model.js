@@ -1,44 +1,6 @@
-const { Sequelize, DataTypes, Model, Op } = require('sequelize');
-const { sequelize } = require("../config/database"); // ใช้ instance เดียวจาก config/database
-
-// Model User
-class User extends Model {
-  static associate(models) {
-    User.hasMany(models.Friendship, {
-      foreignKey: 'senderid',
-      as: 'sentRequests'
-    });
-    User.hasMany(models.Friendship, {
-      foreignKey: 'targetid',
-      as: 'receivedRequests'
-    });
-  }
-}
-User.init({
-  userid: {
-    type: DataTypes.INTEGER,
-    primaryKey: true,
-    autoIncrement: true
-  },
-  username: {
-    type: DataTypes.STRING(100),
-    allowNull: false,
-    unique: true
-  },
-  password: {
-    type: DataTypes.TEXT,
-    allowNull: false
-  },
-  originallang: {
-    type: DataTypes.STRING(10),
-    allowNull: false
-  }
-}, {
-  sequelize,
-  modelName: 'User',
-  tableName: 'users',
-  timestamps: false
-});
+const { DataTypes, Model, Op } = require('sequelize');
+const { sequelize } = require("../config/database");
+const User = require('../users/users.model');
 
 // Model Friendship
 class Friendship extends Model {
@@ -75,7 +37,7 @@ Friendship.init({
   timestamps: false
 });
 
-// Set up associations
+// กำหนด associations โดยใช้ User model ที่ import เข้ามา
 const models = { User, Friendship };
 Object.keys(models).forEach(modelName => {
   if (models[modelName].associate) {

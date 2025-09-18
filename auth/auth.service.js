@@ -2,7 +2,7 @@ const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const User = require("../users/users.model");
 
-const SECRET_KEY = "MY_SECRET_KEY";
+const { SECRET_KEY } = process.env;
 
 async function register(req, res) {
   try {

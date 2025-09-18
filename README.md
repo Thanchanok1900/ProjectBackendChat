@@ -14,7 +14,7 @@ API Endpoints
 
 🔹 Authentication
 
-POST /v1/auth/signin → สมัครสมาชิกใหม่
+POST /v1/auth/signup → สมัครสมาชิกใหม่
 POST /v1/auth/login → ล็อกอิน (รับ Token)
 POST /v1/auth/logout → ล็อกเอาท์
 
@@ -39,20 +39,19 @@ DELETE /v1/chatrooms/:id → ลบห้อง
 🔹 Messages
 
 POST /v1/messages → ส่งข้อความ (originalmessages, roomid)
-GET /v1/messages/chatrooms → ดูข้อความทั้งหมด
-GET /v1/messages/chatrooms/:id?filter=sent → ข้อความที่เราส่ง
-GET /v1/messages/chatrooms/:id?filter=received → ข้อความที่เราได้รับ
-PUT /v1/messages/:id → แก้ไขข้อความ
-DELETE /v1/messages/:id → ลบข้อความ
+GET /v1/messages/chatrooms/:id → ดูข้อความทั้งหมดในห้องที่เลือก
+GET /v1/messages/chatrooms/:id?filter=sent → ดูข้อความที่เราส่งในห้องที่เลือก
+GET /v1/messages/chatrooms/:id?filter=received →  ดูข้อความที่เราได้รับในห้องที่เลือก
+PUT /v1/messages/:id → แก้ไขข้อความตามไอดี
+DELETE /v1/messages/:id → ลบข้อความตามไอดี
 
 
 🔹 Friends
 
-POST /v1/friends/request → ส่งคำขอเป็นเพื่อน (targetid)
-GET /v1/friends/status → ดูสถานะเพื่อนทั้งหมด
-GET /v1/friends/status/me → ดูสถานะเพื่อนของเรา
-PUT /v1/friends/response/:friendshipid → ตอบรับ/ปฏิเสธคำขอ (accept / decline)
-DELETE /v1/friends/response/:friendshipid → ลบเพื่อน
+POST /v1/friend/request → ส่งคำขอเป็นเพื่อน (targetid)
+GET /v1/friend/status/me → ดูสถานะเพื่อนของเรา
+PUT /v1/friend/response/:friendshipid → ตอบรับ/ปฏิเสธคำขอ (accept / decline)
+DELETE /v1/friend/response/:friendshipid → ลบเพื่อน
 
 
 

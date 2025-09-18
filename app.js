@@ -25,7 +25,7 @@ const messagesRoutes = require('./messages/messages.controller');
 app.use("/v1/auth", authRoutes);
 app.use("/v1/users", userRoutes);
 app.use('/v1/chatrooms', chatRoomRouter);
-app.use('/v1/friends', friendRouter);
+app.use('/v1/friend', friendRouter);
 app.use('/v1/messages', messagesRoutes);
 
 app.get('/', (req, res) => {

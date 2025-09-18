@@ -1,4 +1,3 @@
-// chatRoom.service.js
 const ChatRooms = require('./chatRoom.model');
 const User = require('../users/users.model');
 const { Op } = require('sequelize');
@@ -10,7 +9,7 @@ const createRoom = async (targetuserid, loggedInUser) => {
     });
 };
 
-const getRoomById = async (roomid, userid) => { // รับ userid เข้ามา
+const getRoomById = async (roomid, userid) => { 
     const room = await ChatRooms.findOne({
         where: { roomid },
         include: [
@@ -19,16 +18,13 @@ const getRoomById = async (roomid, userid) => { // รับ userid เข้า
         ]
     });
 
-    // ตรวจสอบว่าผู้ใช้ที่ล็อกอินเป็นสมาชิกของห้องแชทนั้นหรือไม่
     if (room && (room.headuserid === userid || room.targetuserid === userid)) {
         return room;
     }
-    
-    // ถ้าไม่ใช่สมาชิก ให้ return null หรือ throw error
     return null;
 };
 
-const getAllRooms = async (userid) => { // รับ userid เข้ามา
+const getAllRooms = async (userid) => { 
     return await ChatRooms.findAll({
         where: {
             [Op.or]: [
@@ -44,11 +40,11 @@ const getAllRooms = async (userid) => { // รับ userid เข้ามา
     });
 };
 
-const deleteRoom = async (roomid, userid) => { // รับ userid เข้ามา
+const deleteRoom = async (roomid, userid) => { 
     const room = await ChatRooms.findByPk(roomid);
     if (!room) return null;
     
-    // ตรวจสอบสิทธิ์ก่อนลบ: ต้องเป็นผู้สร้างห้อง (headuserid) หรือผู้ร่วมแชท (targetuserid)
+    // ต้องเป็นผู้สร้างห้อง หรือผู้ร่วมแชท ถึงจะลบไ้ด้
     if (room.headuserid !== userid && room.targetuserid !== userid) {
       throw { statusCode: 403, message: 'Forbidden: you are not authorized to delete this room' };
     }

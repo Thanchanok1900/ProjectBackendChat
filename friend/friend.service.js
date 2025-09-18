@@ -1,7 +1,7 @@
 const { Op, Friendship, User } = require('./friend.model');
 
 // ส่งคำขอเป็นเพื่อน
-exports.sendFriendRequest = async (senderid, targetid) => {
+const sendFriendRequest = async (senderid, targetid) => {
     if (senderid === targetid) {
         throw new Error("Cannot send friend request to yourself.");
     }
@@ -21,7 +21,7 @@ exports.sendFriendRequest = async (senderid, targetid) => {
 };
 
 // ดูสถานะเพื่อนทั้งหมด
-exports.getFriendshipStatus = async (userid) => {
+const getFriendshipStatus = async (userid) => {
     const friendships = await Friendship.findAll({
         where: {
             [Op.or]: [
@@ -45,14 +45,13 @@ exports.getFriendshipStatus = async (userid) => {
 };
 
 // ตอบรับ/ปฏิเสธคำขอ
-exports.respondToRequest = async (friendshipid, response, userid) => {
+const respondToRequest = async (friendshipid, response, userid) => {
     const request = await Friendship.findByPk(friendshipid);
 
     if (!request) {
         throw new Error("Friend request not found.");
     }
     
-    // บรรทัดนี้ที่ต้องแก้ไขให้ถูกต้อง
     if (request.targetid !== userid){ 
         throw new Error("You are not authorized to respond to this request.");
     }
@@ -69,18 +68,25 @@ exports.respondToRequest = async (friendshipid, response, userid) => {
 };
 
 // ลบเพื่อน
-exports.unfriend = async (friendshipid, userid) => {
+const unfriend = async (friendshipid, userid) => {
     const friendship = await Friendship.findByPk(friendshipid);
 
     if (!friendship) {
         throw new Error("Friendship not found.");
     }
 
-    // เพิ่มการตรวจสอบสิทธิ์: ต้องเป็นหนึ่งในคู่เพื่อนเท่านั้นถึงจะลบได้
+    // ต้องเป็นหนึ่งในคู่เพื่อนเท่านั้นถึงจะลบได้
     if (friendship.senderid !== userid && friendship.targetid !== userid) {
         throw new Error("You are not authorized to remove this friendship.");
     }
     
     await friendship.destroy();
     return { message: "Friend removed successfully." };
+};
+
+module.exports = {
+    sendFriendRequest,
+    getFriendshipStatus,
+    respondToRequest,
+    unfriend
 };
