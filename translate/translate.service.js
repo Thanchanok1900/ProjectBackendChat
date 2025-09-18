@@ -55,7 +55,7 @@ async function translate(text, fromLang, toLang) {
       return await translateWithLibre(text, from, to);
     } catch (e2) {
       console.warn('[translate] LibreTranslate failed:', e2.message);
-      return text; // fallback ต้นฉบับเพื่อไม่ให้ API ล่ม
+      return text; 
     }
   }
 }

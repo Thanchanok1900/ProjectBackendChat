@@ -1,10 +1,10 @@
-// messages.controller.js
+
 const express = require('express');
 const router = express.Router();
 const svc = require('./messages.service');
 const { authenticateToken } = require('../utils/authMiddleware');
 
-// POST: สร้างข้อความใหม่
+// POST  สร้างข้อความใหม่
 router.post('/', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
@@ -19,7 +19,7 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// GET: ดูข้อความทั้งหมดในห้องที่เลือกพร้อม filter
+// GET ดูข้อความทั้งหมดในห้อง และ filter
 router.get('/chatrooms/:id', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
@@ -42,7 +42,7 @@ router.get('/chatrooms/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// ✅ เพิ่มเส้นทางนี้สำหรับ GET: อ่านข้อความตามไอดี
+// เพิ่มเส้นทางนี้สำหรับ GET อ่านข้อความตามไอดี
 router.get('/:id', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
@@ -59,7 +59,7 @@ router.get('/:id', authenticateToken, async (req, res) => {
 });
 
 
-// PUT: แก้ไขข้อความตามไอดี
+// PUT  แก้ไขข้อความตามไอดี
 router.put('/:id', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
@@ -75,7 +75,7 @@ router.put('/:id', authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE: ลบข้อความตามไอดี
+// DELETE  ลบข้อความตามไอดี
 router.delete('/:id', authenticateToken, async (req, res) => {
   try {
     const me = req.user.userid;
