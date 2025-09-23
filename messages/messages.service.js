@@ -105,7 +105,7 @@ async function deleteMyMessage(messageid, me) {
     return { success: true };
 }
 
-// GET ข้อความตาม messageid 
+// GET ข้อความตาม messageid    
 async function getMessageById(messageid, me) {
     const msg = await Message.findOne({
         where: { messageid },
@@ -127,7 +127,7 @@ async function getMessageById(messageid, me) {
     return msg;
 }
 
-// GET: ข้อความทั้งหมดในห้องที่ระบุ 
+// GET: ข้อความทั้งหมดในห้องที่จะด
 async function listAllWithRoom(me, roomid) {
     const room = await ChatRoom.findOne({
         where: { roomid },
