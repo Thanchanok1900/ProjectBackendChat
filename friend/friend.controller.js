@@ -3,7 +3,7 @@ const router = express.Router();
 const friendService = require('./friend.service');
 const { authenticateToken } = require('../utils/authMiddleware');
 
-// POST ส่งคำขอเป็นเพื่อน
+// POST Send friend request
 router.post('/request', authenticateToken, async (req, res) => {
     const senderid = req.user.userid; 
     const { targetid } = req.body; 
@@ -19,7 +19,7 @@ router.post('/request', authenticateToken, async (req, res) => {
     }
 });
 
-// GET ดูสถานะเพื่อนของเรา
+// GET Get friendship status for current user
 router.get('/status/me', authenticateToken, async (req, res) => {
      try {
         const userId = req.user.userid;
@@ -33,7 +33,7 @@ router.get('/status/me', authenticateToken, async (req, res) => {
     }
 });
 
-// PUT ตอบรับ/ปฏิเสธ คำขอ
+// PUT Accept/decline friend request
 router.put('/response/:friendshipid', authenticateToken, async (req, res) => {
     const { friendshipid } = req.params;
     const { response } = req.body; 
@@ -56,7 +56,7 @@ router.put('/response/:friendshipid', authenticateToken, async (req, res) => {
     }
 });
 
-// DELETE ลบเพื่อน
+// DELETE Unfriend
 router.delete('/response/:friendshipId', authenticateToken, async (req, res) => {
     const { friendshipId } = req.params;
     const userid = req.user.userid;

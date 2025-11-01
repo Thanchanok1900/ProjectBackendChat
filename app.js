@@ -6,6 +6,7 @@ const bodyParser = require("body-parser");
 const { connect, sync } = require("./config/database");
 
 require("./messages/messages.model");
+const friendService = require('./friend/friend.service');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -38,6 +39,14 @@ app.get("/health", (_, res) => res.json({ ok: true }));
 async function initializeDatabase() {
   await connect();
   await sync();
+  
+  // Create chat rooms for all existing accepted friendships
+  try {
+    const result = await friendService.createChatRoomsForExistingFriends();
+    console.log(result);
+  } catch (error) {
+    console.error('Error creating chat rooms for existing friends:', error);
+  }
 }
 initializeDatabase();
 

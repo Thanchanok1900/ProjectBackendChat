@@ -14,6 +14,16 @@ function shapeRow(m) {
     const originallang = isHead ? m.ChatRoom.HeadUser.originallang : m.ChatRoom.TargetUser.originallang;
     const targetuserid = isHead ? m.ChatRoom.targetuserid : m.ChatRoom.headuserid;
     const targetlang = isHead ? m.ChatRoom.TargetUser.originallang : m.ChatRoom.HeadUser.originallang;
+    
+    // Include sender information in the response
+    const sender = m.Sender ? {
+        id: m.Sender.userid,
+        username: m.Sender.username
+    } : {
+        id: m.senderid,  // fallback to senderid if full user object is not available
+        username: `User ${m.senderid}`  // fallback username
+    };
+    
     return {
         messageid: m.messageid,
         roomid: m.roomid,
@@ -23,7 +33,8 @@ function shapeRow(m) {
         created_at: m.created_at,
         originallang,
         targetuserid,
-        targetlang
+        targetlang,
+        sender: sender
     };
 }
 //สร้างข้อความโดย roomid 
@@ -70,7 +81,7 @@ async function updateMyMessage(messageid, me, originalmessage) {
                     { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
                 ],
             },
-            { model: User, as: 'Sender', attributes: ['originallang'] },
+            { model: User, as: 'Sender', attributes: ['userid', 'username', 'originallang'] },
         ],
     });
 
@@ -118,7 +129,7 @@ async function getMessageById(messageid, me) {
                     { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
                 ],
             },
-            { model: User, as: 'Sender', attributes: ['originallang'] },
+            { model: User, as: 'Sender', attributes: ['userid', 'username', 'originallang'] },
         ],
     });
     if (!msg) throw { statusCode: 404, message: 'Message not found' };
@@ -147,6 +158,7 @@ async function listAllWithRoom(me, roomid) {
                     { model: User, as: 'TargetUser', attributes: ['userid', 'originallang'] },
                 ],
             },
+            { model: User, as: 'Sender', attributes: ['userid', 'username'] },
         ],
     });
     return msgs.map((m) => shapeRow(m));

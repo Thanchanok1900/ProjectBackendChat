@@ -1,6 +1,21 @@
 const { Op, Friendship, User } = require('./friend.model');
+const { createRoom } = require('../chatRoom/chatRoom.service');
+const ChatRoom = require('../chatRoom/chatRoom.model');
 
-// ส่งคำขอเป็นเพื่อน
+// Check if a chat room already exists between two users
+const chatRoomExists = async (userid1, userid2) => {
+    const room = await ChatRoom.findOne({
+        where: {
+            [Op.or]: [
+                { headuserid: userid1, targetuserid: userid2 },
+                { headuserid: userid2, targetuserid: userid1 }
+            ]
+        }
+    });
+    return room !== null;
+};
+
+// Send friend request
 const sendFriendRequest = async (senderid, targetid) => {
     if (senderid === targetid) {
         throw new Error("Cannot send friend request to yourself.");
@@ -27,7 +42,7 @@ const sendFriendRequest = async (senderid, targetid) => {
     return await Friendship.create({ senderid, targetid, status: 'pending' });
 };
 
-// ดูสถานะเพื่อนทั้งหมด
+// Get all friendship statuses
 const getFriendshipStatus = async (userid) => {
     const friendships = await Friendship.findAll({
         where: {
@@ -51,7 +66,7 @@ const getFriendshipStatus = async (userid) => {
     return response;
 };
 
-// ตอบรับ/ปฏิเสธคำขอ
+// Accept/decline friend request
 const respondToRequest = async (friendshipid, response, userid) => {
     const request = await Friendship.findByPk(friendshipid);
 
@@ -65,7 +80,20 @@ const respondToRequest = async (friendshipid, response, userid) => {
 
     if (response === 'accept') {
         request.status = 'accepted';
-        return await request.save();
+        const updatedRequest = await request.save();
+        
+        // Auto-create a chat room between the two users when the request is accepted
+        // Only create if a room doesn't already exist between these users
+        const senderId = request.senderid;
+        
+        const roomExists = await chatRoomExists(userid, senderId);
+        if (!roomExists) {
+            // Create a chat room where the user accepting the request (userid) is the head user
+            // and the sender of the request is the target user of the chat room
+            await createRoom(senderId, { userid: userid });
+        }
+        
+        return updatedRequest;
     } else if (response === 'decline') {
         await request.destroy();
         return { message: "Friend request declined and removed." };
@@ -74,7 +102,7 @@ const respondToRequest = async (friendshipid, response, userid) => {
     }
 };
 
-// ลบเพื่อน
+// Unfriend
 const unfriend = async (friendshipid, userid) => {
     const friendship = await Friendship.findByPk(friendshipid);
 
@@ -82,7 +110,7 @@ const unfriend = async (friendshipid, userid) => {
         throw new Error("Friendship not found.");
     }
 
-    // ต้องเป็นหนึ่งในคู่เพื่อนเท่านั้นถึงจะลบได้
+    // Must be one of the friend pair to be able to remove
     if (friendship.senderid !== userid && friendship.targetid !== userid) {
         throw new Error("You are not authorized to remove this friendship.");
     }
@@ -91,9 +119,32 @@ const unfriend = async (friendshipid, userid) => {
     return { message: "Friend removed successfully." };
 };
 
+// Create chat rooms for all existing accepted friendships
+const createChatRoomsForExistingFriends = async () => {
+    // Find all accepted friendships
+    const acceptedFriendships = await Friendship.findAll({
+        where: { status: 'accepted' }
+    });
+
+    // For each accepted friendship, ensure a chat room exists
+    for (const friendship of acceptedFriendships) {
+        const { senderid, targetid } = friendship;
+        
+        // Check if a chat room already exists between these users
+        const roomExists = await chatRoomExists(senderid, targetid);
+        if (!roomExists) {
+            // Create a chat room where sender is the head user and target is the target user
+            await createRoom(targetid, { userid: senderid });
+        }
+    }
+    
+    return `Processed ${acceptedFriendships.length} existing friendships`;
+};
+
 module.exports = {
     sendFriendRequest,
     getFriendshipStatus,
     respondToRequest,
-    unfriend
+    unfriend,
+    createChatRoomsForExistingFriends
 };
