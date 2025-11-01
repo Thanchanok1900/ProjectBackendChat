@@ -5,6 +5,13 @@ const sendFriendRequest = async (senderid, targetid) => {
     if (senderid === targetid) {
         throw new Error("Cannot send friend request to yourself.");
     }
+
+    // Check if target user exists
+    const targetUser = await User.findByPk(targetid);
+    if (!targetUser) {
+        throw new Error("Target user does not exist.");
+    }
+
     const existingFriendship = await Friendship.findOne({
         where: {
             [Op.or]: [

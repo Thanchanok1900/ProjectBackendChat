@@ -11,7 +11,11 @@ router.post('/request', authenticateToken, async (req, res) => {
         const newRequest = await friendService.sendFriendRequest(senderid, targetid);
         res.status(201).send({ message: "Friend request sent successfully.", request: newRequest });
     } catch (error) {
-        res.status(500).send({ message: "Error sending friend request.", error: error.message });
+        // Return 400 for user errors, 500 for unexpected server errors
+        const statusCode = error.message.includes("does not exist") || 
+                           error.message.includes("yourself") || 
+                           error.message.includes("already sent") ? 400 : 500;
+        res.status(statusCode).send({ message: "Error sending friend request.", error: error.message });
     }
 });
 
@@ -36,13 +40,19 @@ router.put('/response/:friendshipid', authenticateToken, async (req, res) => {
     const userid = req.user.userid;
     try {
         const result = await friendService.respondToRequest(friendshipid, response, userid);
-        if (result.message) {
+        if (result && result.message) {
             res.status(200).send(result);
-        } else {
+        } else if (result) {
             res.status(200).send({ message: "Friend request accepted.", friendship: result });
+        } else {
+            res.status(200).send({ message: "Friend request processed successfully." });
         }
     } catch (error) {
-        res.status(500).send({ message: "Error responding to friend request.", error: error.message });
+        // Return 400 for user errors, 500 for unexpected server errors
+        const statusCode = error.message.includes("not found") || 
+                           error.message.includes("authorized") || 
+                           error.message.includes("Invalid response") ? 400 : 500;
+        res.status(statusCode).send({ message: "Error responding to friend request.", error: error.message });
     }
 });
 
@@ -54,7 +64,10 @@ router.delete('/response/:friendshipId', authenticateToken, async (req, res) => 
         const result = await friendService.unfriend(friendshipId, userid);
         res.status(200).send({ message: "Friendship removed successfully.", result });
     } catch (error) {
-        res.status(500).send({ message: "Error removing friendship.", error: error.message });
+        // Return 400 for user errors, 500 for unexpected server errors
+        const statusCode = error.message.includes("not found") || 
+                           error.message.includes("authorized") ? 400 : 500;
+        res.status(statusCode).send({ message: "Error removing friendship.", error: error.message });
     }
 });
 
